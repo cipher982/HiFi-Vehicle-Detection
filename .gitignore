@@ -1,2 +1,5 @@
 
 X_scaler_scaled_X_y.p
+svc.pickle
+X_scaled.p
+*.pickle
