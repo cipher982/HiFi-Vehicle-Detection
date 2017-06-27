@@ -76,6 +76,7 @@ Pickle All The Features!!!
 def pickle_extracted_features(pickle_file, cars, notcars, cspace, orient, 
                               px_per_cell,cl_per_block, hog_ch,
                               spat_size=(32,32), hist_bins=32):
+    print('pickle ext cspace is ',cspace)
     # Time Start
     time1 = time.time()
     # extract each features
@@ -118,13 +119,16 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
                         pix_per_cell=8, cell_per_block=2, hog_channel=0,bins_range=(0,256)):
     # Create a list to append feature vectors to
     features = []
+    print('extract feat cspace is',color_space)
     # Iterate through the list of images
     for file in imgs:
         file_features = []
         # Read in each one by one
         image = mpimg.imread(file)
+        #print('mean in pickle is ',np.mean(image))
         if image.dtype == 'float32':
             image = convert_png_2_jpg(image)
+            #print('BUT now mean is ',np.mean(image))
         # apply color conversion if other than 'RGB'
         if color_space != 'RGB':
             if color_space == 'HSV':
@@ -136,6 +140,7 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
             elif color_space == 'YUV':
                 feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YUV)
             elif color_space == 'YCrCb':
+                #print('converted to YC')
                 feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
         else: 
             feature_image = np.copy(image)      
@@ -278,14 +283,34 @@ Find All The Cars!!!
 # HOG sub-sampling to search through the image
 def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_cell, 
               cell_per_block, spatial_size=(32,32), hist_bins=32):
+    print('mean of img is: ',np.mean(img))
+    if img.dtype == 'float32':
+        img = convert_png_2_jpg(img)
+        print('converted mean of pic is ',np.mean(img))
+        
+    if cspace != 'RGB':
+        if cspace == 'HSV':
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        elif cspace == 'LUV':
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2LUV)
+        elif cspace == 'HLS':
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+        elif cspace == 'YUV':
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2YUV)
+        elif cspace == 'YCrCb':
+            print('converted to YC')
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        else: 
+            pass   
     draw_img = np.copy(img)
     print('find cars cspace is ',cspace)
     # search through image
-    print(np.shape(img))
+    #print(np.shape(img))
     img_search = img[ystart:ystop,:,:]
     # define window list to draw
     win_list = []
-    ctrans_search = convert_color(img_search, conv=cspace)
+    #ctrans_search = convert_color(img_search, conv=cspace)
+    ctrans_search = img_search
     # change imagesize when scale is not 1.0 
     if scale != 1:
         imshape = ctrans_search.shape
@@ -343,9 +368,10 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
             test_features = X_scaler.transform(np.hstack((spatial_features, hist_features,
                                                           hog_features)).reshape(1,-1))
             #test_features = np.array(test_features)
-            test_prediction = svc.predict(test_features)
+            #test_prediction = svc.predict(test_features)
 
-            if test_prediction == 1:
+            #if test_prediction == 1:
+            if svc.decision_function(test_features) > .01:
                 xbox_left = np.int(xleft*scale)
                 ytop_draw = np.int(ytop*scale)
                 win_draw = np.int(window*scale)
@@ -402,8 +428,8 @@ def search_with_multiscale_windows(img, cspace, orient, pix_per_cell, cell_per_b
     #print(ystart,ystop,scale)
     
     for y_start,y_end, scales in zip(ystart,ystop,scale):
-        win_list, draw_img = find_cars(img, int(y_start), int(y_end), scales, svc, X_scaler, cspace, 
-                                       orient,pix_per_cell, cell_per_block)
+        win_list, draw_img = find_cars(img, int(y_start), int(y_end), scales, svc, 
+                                       X_scaler, cspace,orient,pix_per_cell, cell_per_block)
         
         windows = windows + win_list
     
@@ -460,51 +486,21 @@ def draw_labeled_windows(img, labels):
 
 
 def test_image(image,cspace,orient,pix_per_cell,cell_per_block,point_scale_data):
-    cimg = np.copy(image)
+    img = np.copy(image)
     windows = search_with_multiscale_windows(image, cspace, orient, pix_per_cell, cell_per_block,
                                              point_scale_data)
     
-    # CHECK passed inputs
-    #print("for [test_image] input: ystart/stop:{}/{}, scale={}, cspace={},\
-    #      orient={}, pix_per_cell={}, cell_per_block={}".format(ystart,ystop,scale,
-    #                                                            cspace,orient,
-    #                                                           pix_per_cell,cell_per_block))
-    
-    #print(windows)
-    #windows,img = find_cars(image, ystart, ystop, scale, svc, X_scaler,cspace, orient, pix_per_cell, 
-    #                        cell_per_block)
-    
-    # search through the image when it has detected windows
     if len(windows) > 0:
         heat = np.zeros_like(image[:,:,0]).astype(np.float)
         heat = add_heat(heat, windows)
+        # Lower value increases likelyhood of drawing box
         heat = apply_threshold(heat,10)
-        
         heatmap = np.clip(heat, 0, 255)
         labels = label(heatmap)
-        draw_img = draw_labeled_windows(cimg, labels)
-        
-        # Show windows in heated area
-        #draw_img = draw_boxes(draw_img, windows)
-        #plt.imshow(draw_img)
-        
-        # Show heat map and window image
-        #fig = plt.figure()
-        #plt.subplot(211)
-        #plt.imshow(draw_img)
-        #plt.subplot(212)
-        #plt.imshow(heatmap, cmap='hot')
-        #fig.tight_layout()
-        
-        #f,(ax1,ax2) = plt.subplots(1,2,figsize=(24,9))
-        #ax1.imshow(draw_img)
-        #ax1.set_title('detected windows', fontsize=40)
-        #ax2.imshow(heatmap, cmap='hot')
-        #ax2.set_title('heatmap', fontsize=40)
-        #plt.show()
-    
+        draw_img = draw_labeled_windows(img, labels)
     else:
-        print("Nothing detected: No windows found")
+        print("No windows found")
+        img = image
     
     return draw_img,heatmap
 
