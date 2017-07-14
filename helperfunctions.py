@@ -72,6 +72,35 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
 """
 Pickle All The Features!!!
 """
+
+def pickle_image_folder(folder,pickle_name,cars):
+    for n in range(len(cars_files)):
+        pngs =  glob.glob((folder + '/**/*.png'), recursive=True)
+        jpgs =  glob.glob((folder + '/**/*.jpg'), recursive=True)
+        
+    imgs = []
+    for file in pngs:
+        # Read in each one by one
+        image = mpimg.imread(file)
+        image = image * 255
+        image = image.astype(np.uint8)
+        imgs.append(image)
+        
+    for file in jpgs:
+        image = mpimg.imread(file)
+        imgs.append(image)
+        
+    if cars == 'yes':
+        # Define the labels vector
+        y = np.hstack(np.ones(len(imgs)))
+    elif cars == 'no':
+        y = np.hstack(np.zeros(len(imgs)))
+    else:
+        print('Declare cars or not!')
+        
+    # save scaler as pickled file
+    pickle.dump({'X':imgs,'y':y},open(pickle_name,"wb"))
+        
 # Function courtesy of TMresolution0115
 def pickle_extracted_features(pickle_file, cars, notcars, cspace, orient, 
                               px_per_cell,cl_per_block, hog_ch,
@@ -128,7 +157,7 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
         #print('mean in pickle is ',np.mean(image))
         if image.dtype == 'float32':
             image = convert_png_2_jpg(image)
-            #print('BUT now mean is ',np.mean(image))
+            #print('CONVERTED now mean is ',np.mean(image))
         # apply color conversion if other than 'RGB'
         if color_space != 'RGB':
             if color_space == 'HSV':
@@ -142,6 +171,8 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
             elif color_space == 'YCrCb':
                 #print('converted to YC')
                 feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
+            elif color_space == 'Lab':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2Lab)
         else: 
             feature_image = np.copy(image)      
 
@@ -282,12 +313,12 @@ Find All The Cars!!!
 
 # HOG sub-sampling to search through the image
 def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_cell, 
-              cell_per_block, spatial_size=(32,32), hist_bins=32):
-    print('mean of img is: ',np.mean(img))
+              cell_per_block, spatial_size=(32,32), hist_bins=32, show_all_rectangles=False):
+    #print('mean of img is: ',np.mean(img))
     if img.dtype == 'float32':
         img = convert_png_2_jpg(img)
-        print('converted mean of pic is ',np.mean(img))
-        
+        #print('converted mean of pic is ',np.mean(img))
+    #cspace = "YCrCb"
     if cspace != 'RGB':
         if cspace == 'HSV':
             img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -298,12 +329,14 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
         elif cspace == 'YUV':
             img = cv2.cvtColor(img, cv2.COLOR_RGB2YUV)
         elif cspace == 'YCrCb':
-            print('converted to YC')
+            #print('converted to YC')
             img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        elif cspace == 'Lab':
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2Lab)
         else: 
             pass   
     draw_img = np.copy(img)
-    print('find cars cspace is ',cspace)
+    #print('find cars cspace is ',cspace)
     # search through image
     #print(np.shape(img))
     img_search = img[ystart:ystop,:,:]
@@ -368,10 +401,10 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
             test_features = X_scaler.transform(np.hstack((spatial_features, hist_features,
                                                           hog_features)).reshape(1,-1))
             #test_features = np.array(test_features)
-            #test_prediction = svc.predict(test_features)
+            test_prediction = svc.predict(test_features)
 
-            #if test_prediction == 1:
-            if svc.decision_function(test_features) > .01:
+            if test_prediction == 1 or show_all_rectangles == True:
+            #if svc.decision_function(test_features) > .01:
                 xbox_left = np.int(xleft*scale)
                 ytop_draw = np.int(ytop*scale)
                 win_draw = np.int(window*scale)
@@ -386,34 +419,13 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
 """
 Multi-Scale Windows!
 """
-def test_image(image):
-    cimg = np.copy(image)
-    print('test_image cspace is ',cspace)
 
-    windows = search_with_multiscale_windows(image, cspace, orient, pix_per_cell, cell_per_block,
-                                             point_scale_data)
-    
-    # search through the image when it has detected windows
-    if len(windows) > 0:
-        heat = np.zeros_like(image[:,:,0]).astype(np.float)
-        heat = add_heat(heat, windows)
-        heat = apply_threshold(heat,10)
-        
-        heatmap = np.clip(heat, 0, 255)
-        labels = label(heatmap)
-        draw_img = draw_labeled_windows(cimg, labels)
-    
-    else:
-        print("Nothing detected: No windows found")
-        draw_img = None
-    
-    return draw_img,heatmap
 
 
 def search_with_multiscale_windows(img, cspace, orient, pix_per_cell, cell_per_block, 
                                    point_scale_data, spatial_size=(32,32), hist_bins=32):
-    print('search_with_multiscale cspace is ',cspace)
-
+    #print('search_with_multiscale cspace is ',cspace)
+    cspace = "YCrCb"
     # Define array to store recent windows
     windows = []
     origin = np.copy(img)
@@ -436,6 +448,7 @@ def search_with_multiscale_windows(img, cspace, orient, pix_per_cell, cell_per_b
     return windows
 
 def draw_labeled_windows(img, labels):
+    cspace = "YCrCb"
     # Iterate through all detected cars
     for car_num in range(1, labels[1]+1):
         # Find pixels with each car_num label value
@@ -453,6 +466,7 @@ def draw_labeled_windows(img, labels):
 
 
 def add_heat(heatmap,win_list):
+    cspace = "YCrCb"
     # Iterate through list of windows
     for win in win_list:
         # Add +=1 for all pixels inside each win
@@ -487,6 +501,7 @@ def draw_labeled_windows(img, labels):
 
 def test_image(image,cspace,orient,pix_per_cell,cell_per_block,point_scale_data):
     img = np.copy(image)
+    cspace = "YCrCb"
     windows = search_with_multiscale_windows(image, cspace, orient, pix_per_cell, cell_per_block,
                                              point_scale_data)
     
