@@ -109,12 +109,12 @@ def pickle_extracted_features(pickle_file, cars, notcars, cspace, orient,
     # Time Start
     time1 = time.time()
     # extract each features
-    car_features = extract_features(cars, color_space=cspace, spatial_size=spat_size, 
-                                    hist_bins=hist_bins, orient=orient, pix_per_cell=px_per_cell, 
-                                    cell_per_block=cl_per_block, hog_channel=hog_ch)
-    notcar_features = extract_features(notcars, color_space=cspace, spatial_size=spat_size, 
-                                       hist_bins=hist_bins, orient=orient, pix_per_cell=px_per_cell,
-                                       cell_per_block=cl_per_block, hog_channel=hog_ch)
+    car_features = extract_features(cars, cspace=colorspace, orient=orient, 
+                        pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
+                        hog_channel=hog_channel)
+    notcar_features = extract_features(notcars, cspace=colorspace, orient=orient, 
+                        pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
+                        hog_channel=hog_channel)
     # Time End
     time2 = time.time()
     print(' Seconds to extract features: ',round(time2-time1, 2))
@@ -355,8 +355,8 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
     ch3 = ctrans_search[:,:,2]
     
     # Define block, steps 
-    nx_blocks = (ch1.shape[1] // pix_per_cell) - 1
-    ny_blocks = (ch1.shape[0] // pix_per_cell) - 1
+    nx_blocks = (ch1.shape[1] // pix_per_cell) + 1
+    ny_blocks = (ch1.shape[0] // pix_per_cell) + 1
     nfeat_per_block = orient*cell_per_block**2
     # 64 was the original sampling rate, with 8 cells and 8 pix per cell
     window = 64
@@ -448,7 +448,6 @@ def search_with_multiscale_windows(img, cspace, orient, pix_per_cell, cell_per_b
     return windows
 
 def draw_labeled_windows(img, labels):
-    cspace = "YCrCb"
     # Iterate through all detected cars
     for car_num in range(1, labels[1]+1):
         # Find pixels with each car_num label value
@@ -466,7 +465,6 @@ def draw_labeled_windows(img, labels):
 
 
 def add_heat(heatmap,win_list):
-    cspace = "YCrCb"
     # Iterate through list of windows
     for win in win_list:
         # Add +=1 for all pixels inside each win
