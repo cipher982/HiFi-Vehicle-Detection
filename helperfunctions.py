@@ -441,7 +441,8 @@ def search_with_multiscale_windows(img, cspace, orient, pix_per_cell, cell_per_b
     
     for y_start,y_end, scales in zip(ystart,ystop,scale):
         win_list, draw_img = find_cars(img, int(y_start), int(y_end), scales, svc, 
-                                       X_scaler, cspace,orient,pix_per_cell, cell_per_block)
+                                       X_scaler, cspace,orient,pix_per_cell, cell_per_block,
+                                       spatial_size=(32,32), hist_bins=32)
         
         windows = windows + win_list
     
