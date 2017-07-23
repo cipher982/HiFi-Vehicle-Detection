@@ -152,7 +152,7 @@ def convert_color(img, conv='RGB2YCrCb'):
         return cv2.cvtColor(img, cv2.COLOR_RGB2LUV)
     else:
         return img
-    
+
 
 
 
@@ -179,7 +179,7 @@ def add_heat(heatmap,win_list):
         # Add +=1 for all pixels inside each win
         # assuming each win takes the form ((x1,y1),(x2,y2))
         heatmap[win[0][1]:win[1][1],win[0][0]:win[1][0]] += 1
-        
+
     return heatmap
 
 def apply_threshold(heatmap, threshold):
@@ -211,7 +211,7 @@ def test_image(image,colorspace,orient,pix_per_cell,cell_per_block,point_scale_d
     #colorspace = "YCrCb"
     windows = search_with_multiscale_windows(image, colorspace, orient, pix_per_cell, cell_per_block,
                                              point_scale_data)
-    
+
     if len(windows) > 0:
         heat = np.zeros_like(image[:,:,0]).astype(np.float)
         heat = add_heat(heat, windows)
@@ -223,7 +223,7 @@ def test_image(image,colorspace,orient,pix_per_cell,cell_per_block,point_scale_d
     else:
         print("No windows found")
         img = image
-    
+
     return draw_img,heatmap
 
 
@@ -705,8 +705,8 @@ def process_video_2(img):
     y_stop = (464,480,496,528,528,560,596,660)
     scale = (1.0,1.0,1.5,1.5,2.0,2.0,3.5,3.5)
 
-    for y_start,y_end, scales in zip(y_start,y_stop,scale):
-        rects.append(find_cars(img, int(ystart), int(ystop), scale, colorspace, 
+    for y_start,y_stop, scale in zip(y_start,y_stop,scale):
+        rects.append(find_cars(img, int(y_start), int(y_stop), scale, colorspace, 
                      hog_channel, svc, X_scaler, orient, pix_per_cell, 
                      cell_per_block, spatial_size, hist_bins))
 
